@@ -130,4 +130,4 @@ dmypy.json
 
 
 # Pytorch Model
-.pt
+*.pt
