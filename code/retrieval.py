@@ -25,7 +25,7 @@ def timer(name):
     print(f'[{name}] done in {time.time() - t0:.3f} s')
 
 class SparseRetrieval:
-    def __init__(self, tokenize_fn, data_path="./data/", context_path="wikipedia_documents.json"):
+    def __init__(self, tokenize_fn, data_path="/opt/ml/input/data/data/", context_path="wikipedia_documents.json"):
         self.data_path = data_path
         with open(os.path.join(data_path, context_path), "r") as f:
             wiki = json.load(f)
@@ -73,7 +73,7 @@ class SparseRetrieval:
         niter = 5
 
         # 1. Clustering
-        p_emb = self.p_embedding.toarray().astype(np.float32)
+        p_emb = self.p_embedding.astype(np.float32).toarray()
         emb_dim = p_emb.shape[-1]
         index_flat = faiss.IndexFlatL2(emb_dim)
 
@@ -187,8 +187,8 @@ class SparseRetrieval:
                     "context": self.contexts[doc_indices[idx][0]]  # retrieved doument
                 }
                 if 'context' in example.keys() and 'answers' in example.keys():
-                    tmp["original_context"]: example['context']  # original document
-                    tmp["answers"]: example['answers']           # original answer
+                    tmp["original_context"] = example['context']  # original document
+                    tmp["answers"] = example['answers']           # original answer
                 total.append(tmp)
 
             cqas = pd.DataFrame(total)
@@ -222,7 +222,7 @@ class SparseRetrieval:
 
 if __name__ == "__main__":
     # Test sparse
-    org_dataset = load_from_disk("data/train_dataset")
+    org_dataset = load_from_disk("/opt/ml/input/data/data/dummy_dataset")
     full_ds = concatenate_datasets(
         [
             org_dataset["train"].flatten_indices(),
@@ -250,8 +250,14 @@ if __name__ == "__main__":
     retriever = SparseRetrieval(
         # tokenize_fn=tokenizer.tokenize,
         tokenize_fn=tokenize,
-        data_path="data",
+        data_path="/opt/ml/input/data/data",
         context_path=wiki_path)
+
+    # Build Sparse Embedding
+    retriever.get_sparse_embedding()
+
+    # Build Faiss
+    retriever.build_faiss()
 
     # test single query
     query = "대통령을 포함한 미국의 행정부 견제권을 갖는 국가 기관은?"
@@ -268,6 +274,7 @@ if __name__ == "__main__":
         print("correct retrieval result by exhaustive search", df['correct'].sum() / len(df))
     with timer("bulk query by exhaustive search"):
         df = retriever.retrieve_faiss(full_ds)
+        #print(df.columns)
         df['correct'] = df['original_context'] == df['context']
         print("correct retrieval result by faiss", df['correct'].sum() / len(df))
 
