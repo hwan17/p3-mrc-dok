@@ -22,14 +22,12 @@ with open(args.config) as f:
 train_args = []
 inference_args = []
 
-# Add model_name_or_path
-train_args.extend(['--model_name_or_path', cfg['model_name_or_path']])
-inference_args.extend(['--model_name_or_path', cfg['model_name_or_path']])
-
 # Add train_args
 for key in cfg["train_args"].keys():
     train_args.extend(["--{}".format(key), str(cfg["train_args"][key])])
 
+# Add inference args
+inference_args.extend(['--model_name_or_path', cfg['train_args']['output_dir']])
 for key in cfg["inference_args"].keys():
     inference_args.extend(["--{}".format(key), str(cfg["inference_args"][key])])
 
