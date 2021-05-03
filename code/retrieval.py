@@ -38,7 +38,7 @@ class SparseRetrieval:
         self.tfidfv = TfidfVectorizer(
             tokenizer=tokenize_fn,
             ngram_range=(1, 2),
-            max_features=50000,
+#            max_features=50000,
         )
 
         # should run get_sparse_embedding() or build_faiss() first.
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         scores, indices = retriever.retrieve(query)
     with timer("single query by faiss"):
         scores, indices = retriever.retrieve_faiss(query)
-
+    
     # test bulk
     with timer("bulk query by exhaustive search"):
         df = retriever.retrieve(full_ds)
