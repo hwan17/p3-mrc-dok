@@ -130,6 +130,7 @@ dmypy.json
 
 
 # Pytorch Model
+<<<<<<< HEAD
 .pt
 
 # Mecab & Python
@@ -139,3 +140,4 @@ mecab*/
 # Trained Model & Outputs
 models/
 outputs/
+*.pt
