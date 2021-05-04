@@ -1,0 +1,11 @@
+{
+    "train_args": {
+    	"model_name_or_path": "xlm-roberta-large", 
+        "output_dir": "./models/roberta-large-epoch-10",
+        "num_train_epochs": 10,
+        "save_total_limit": 1
+    },
+    "inference_args": {
+        "output_dir": "./outputs/roberta-large-epoch-10"
+    }
+}

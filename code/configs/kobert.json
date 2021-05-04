@@ -1,0 +1,11 @@
+{
+    "train_args": {
+    	"model_name_or_path": "monologg/kobert", 
+        "output_dir": "./models/kobert-epoch-10",
+        "num_train_epochs": 10,
+        "save_total_limit": 2
+    },
+    "inference_args": {
+        "output_dir": "./outputs/kobert-epoch-10"
+    }
+}

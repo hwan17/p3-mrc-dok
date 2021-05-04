@@ -35,9 +35,14 @@ for key in cfg["inference_args"].keys():
 subprocess.run(["python",
                 "train.py",
                 "--do_train"] + train_args)
+# Evaluate Model
+subprocess.run(["python",
+                "train.py",
+                "--do_eval"] + train_args)
 
 # Inference Model
 subprocess.run(["python",
                 "inference.py",
                 "--dataset_name", "/opt/ml/input/data/data/test_dataset/",
                 "--do_predict"] + inference_args)
+

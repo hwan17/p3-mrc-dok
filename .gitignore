@@ -131,3 +131,11 @@ dmypy.json
 
 # Pytorch Model
 .pt
+
+# Mecab & Python
+Python-*/
+mecab*/
+
+# Trained Model & Outputs
+models/
+outputs/
