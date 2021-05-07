@@ -111,11 +111,15 @@ class SparseRetrieval:
                 doc_scores, doc_indices = self.get_relevant_doc_bulk(query_or_dataset['question'], k=1)
             for idx, example in enumerate(tqdm(query_or_dataset, desc="Sparse retrieval: ")):
                 # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
+                all_contexts =' '
+                for i in range(topk):
+                    all_contexts = all_contexts + " " + self.contexts[doc_indices[idx][i]]
+
                 tmp = {
                     "question": example["question"],
                     "id": example['id'],
                     "context_id": doc_indices[idx][0],  # retrieved id
-                    "context": self.contexts[doc_indices[idx][0]]  # retrieved doument
+                    "context": all_contexts #self.contexts[doc_indices[idx][0]]  # retrieved doument
                 }
                 if 'context' in example.keys() and 'answers' in example.keys():
                     tmp["original_context"] = example['context']  # original document
