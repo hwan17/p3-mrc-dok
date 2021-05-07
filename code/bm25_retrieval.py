@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from konlpy.tag import Mecab
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Okapi,BM25Plus,BM25L
 from datasets import Dataset
 
 from contextlib import contextmanager
@@ -35,7 +35,7 @@ class SparseRetrievalBM25:
             tokenized_context = self.mecab.morphs(context)
             tokenized_corpus.append(tokenized_context)
 
-        self.bm25 = BM25Okapi(tokenized_corpus)
+        self.bm25 = BM25Plus(tokenized_corpus, k1=1, b=0.4, delta=0.4) #self.bm25 = BM25Okapi(tokenized_corpus)
         
         
     def get_relevant_doc_bm25(self, query, k=1):
@@ -76,11 +76,15 @@ class SparseRetrievalBM25:
                 doc_scores, doc_indices =self.get_relevant_doc_bulk_bm25(query_or_dataset['question'], k=topk)
             for idx, example in enumerate(tqdm(query_or_dataset, desc="Sparse retrieval: ")):
                 # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
+                all_contexts =''
+                for i in range(topk):
+                    all_contexts =all_contexts + " "+ self.contexts[doc_indices[idx][i]]
+
                 tmp = {
                     "question": example["question"],
                     "id": example['id'],
                     "context_id": doc_indices[idx][0],  # retrieved id
-                    "context": self.contexts[doc_indices[idx][0]]  # retrieved doument
+                    "context": all_contexts #self.contexts[doc_indices[idx][0]]  # retrieved doument
                 }
                 if 'context' in example.keys() and 'answers' in example.keys():
                     tmp["original_context"] = example['context']  # original document
