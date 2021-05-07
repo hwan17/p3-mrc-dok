@@ -233,23 +233,24 @@ if __name__ == "__main__":
     print(full_ds)
 
     ### Mecab 이 가장 높은 성능을 보였기에 mecab 으로 선택 했습니다 ###
+    '''
     mecab = Mecab()
     def tokenize(text):
         # return text.split(" ")
         return mecab.morphs(text)
-
-    # from transformers import AutoTokenizer
-    #
-    # tokenizer = AutoTokenizer.from_pretrained(
-    #     "bert-base-multilingual-cased",
-    #     use_fast=True,
-    # )
+    '''
+    from transformers import AutoTokenizer
+    
+    tokenizer = AutoTokenizer.from_pretrained(
+         "monologg/koelectra-base-v3-discriminator",
+         use_fast=True,
+    )
     ###############################################################
 
     wiki_path = "wikipedia_documents.json"
     retriever = SparseRetrieval(
-        # tokenize_fn=tokenizer.tokenize,
-        tokenize_fn=tokenize,
+        tokenize_fn=tokenizer.tokenize,
+        #tokenize_fn=tokenize,
         data_path="/opt/ml/input/data/data",
         context_path=wiki_path)
 
