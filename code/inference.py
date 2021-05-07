@@ -96,7 +96,7 @@ def run_sparse_retrieval(datasets, training_args):
                                 data_path="./data",
                                 context_path="wikipedia_documents.json")
     retriever.get_sparse_embedding()
-    df = retriever.retrieve(datasets['validation'])
+    df = retriever.retrieve(datasets['validation'],topk=1)
 
     # faiss retrieval
     # df = retriever.retrieve_faiss(dataset['validation'])
