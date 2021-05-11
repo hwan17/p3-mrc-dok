@@ -1,0 +1,12 @@
+{
+    "train_args": {
+    	"model_name_or_path": "monologg/koelectra-base-v3-discriminator", 
+        "output_dir": "./models/koelectra-epoch-10-seed-1118",
+        "num_train_epochs": 10,
+        "save_total_limit": 2,
+	"seed": 1118
+    },
+    "inference_args": {
+        "output_dir": "./outputs/koelectra-epoch-10-seed-1118"
+    }
+}

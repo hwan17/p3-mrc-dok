@@ -23,11 +23,24 @@ from transformers import (
 from utils_qa import postprocess_qa_predictions, check_no_error, tokenize
 from trainer_qa import QuestionAnsweringTrainer
 from retrieval import SparseRetrieval
+from bm25_retrieval import SparseRetrievalBM25
 
 from arguments import (
     ModelArguments,
     DataTrainingArguments,
 )
+
+
+# Flexible integration for any Python script
+'''
+import wandb
+
+# 1. Start a W&B run
+wandb.init(project='p-stage-3-inference', entity='newspring97')
+
+# 2. Save model inputs and hyperparameters
+config = wandb.config
+'''
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +104,14 @@ def main():
 
 def run_sparse_retrieval(datasets, training_args):
     #### retreival process ####
-
+    '''
     retriever = SparseRetrieval(tokenize_fn=tokenize,
                                 data_path="/opt/ml/input/data/data",
                                 context_path="wikipedia_documents.json")
     retriever.get_sparse_embedding()
-    df = retriever.retrieve(datasets['validation'],topk=1)
+    '''
+    retriever = SparseRetrievalBM25()
+    df = retriever.retrieve(datasets['validation'],topk=5)
 
     # faiss retrieval
     # df = retriever.retrieve_faiss(dataset['validation'])

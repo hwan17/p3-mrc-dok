@@ -1,0 +1,11 @@
+{
+    "train_args": {
+    	"model_name_or_path": "sangrimlee/bert-base-multilingual-cased-korquad", 
+        "output_dir": "./models/bert-sangrimlee",
+        "num_train_epochs": 10,
+        "save_total_limit": 2
+    },
+    "inference_args": {
+        "output_dir": "./outputs/bert-sangrimlee"
+    }
+}

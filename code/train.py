@@ -286,7 +286,17 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
     metric = load_metric("squad")
 
     def compute_metrics(p: EvalPrediction):
-        return metric.compute(predictions=p.predictions, references=p.label_ids)
+        result =  metric.compute(predictions=p.predictions, references=p.label_ids)
+        print(result)
+        #wandb.log(result)
+        
+        return {
+            'exact_match': result['exact_match'],
+            'eval_exact_match': result['exact_match'],
+            'f1': result['f1']
+        }
+        #return result
+        #return metric.compute(predictions=p.predictions, references=p.label_ids)
 
     # Initialize our Trainer
     trainer = QuestionAnsweringTrainer(

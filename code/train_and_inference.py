@@ -30,7 +30,6 @@ for key in cfg["train_args"].keys():
 inference_args.extend(['--model_name_or_path', cfg['train_args']['output_dir']])
 for key in cfg["inference_args"].keys():
     inference_args.extend(["--{}".format(key), str(cfg["inference_args"][key])])
-
 # Train Reader Model
 subprocess.run(["python",
                 "train.py",
@@ -39,7 +38,6 @@ subprocess.run(["python",
 subprocess.run(["python",
                 "train.py",
                 "--do_eval"] + train_args)
-
 # Inference Model
 subprocess.run(["python",
                 "inference.py",
