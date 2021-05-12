@@ -219,7 +219,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
 
         # Since one example might give us several features if it has a long context, we need a map from a feature to
         # its corresponding example. This key gives us just that.
-        sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
+        sample_mapping = tokenized_examples["overflow_to_sample_mapping"]
 
         # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
         # corresponding example_id and we will store the offset mappings.
@@ -263,11 +263,12 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
     )
 
     # Post-processing:
-    def post_processing_function(examples, features, predictions, training_args):
+    def post_processing_function(examples, features, doc_scores, predictions, training_args):
         # Post-processing: we match the start logits and end logits to answers in the original context.
         predictions = postprocess_qa_predictions(
             examples=examples,
             features=features,
+            doc_scores=doc_scores,
             predictions=predictions,
             max_answer_length=data_args.max_answer_length,
             output_dir=training_args.output_dir,

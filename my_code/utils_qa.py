@@ -222,7 +222,7 @@ def postprocess_qa_predictions(
                             "score": start_logits[start_index] + end_logits[end_index] + math.log(scores[txt_idx]),
                             "start_logit": start_logits[start_index],
                             "end_logit": end_logits[end_index],
-                            "context_idx": 20 * example_index + txt_idx
+                            "context_idx": len(doc_scores[0]) * example_index + txt_idx
                         }
                     )
         if version_2_with_negative:
