@@ -1,77 +1,115 @@
-bert-base-multilingual-cased:
-  model_name: "bert-base-multilingual-cased"
+trial1:
   seed: 0
-  train_args:
-    retrieval: 1
-    num_epochs: 15
-    train_batch_size: 8
-    eval_batch_size: 8
-    weight_decay: 0.01
-    gradient_accumulation_steps: 1
+  mrc:
+    model_name : "monologg/koelectra-base-v3-discriminator"
+    num_epochs: 20
+    batch_size: 32
+    gradient_accumulation_steps: 2
     optimizer: 'AdamW'
     adam_epsilon: 1.0e-8
-    criterion: 'label_smoothing' # (focal, label_smoothing, f1, cross_entropy)
+    weight_decay: 0.01
+    criterion: 'cross_entropy' # (focal, label_smoothing, f1, cross_entropy)
     smoothing: 0.2
-    scheduler_name: 'ReduceLROnPlateau' # ['CosineAnnealing', 'ReduceLROnPlateau', 'steplr', 'linear']
     lr: 0.00001
-    gamma: 0.5
+    scheduler: 'CosineAnnealing' # ['CosineAnnealing', 'ReduceLROnPlateau', 'steplr', 'linear']
+    gamma: 1.0
     warmup_epoch: 1
-    first_cycle_epoch: 3 # if scheduler == CosineAnnealing
-    min_lr : 0.0000001 # if scheduler == Cosine Anneaing
-  model_args:
-    max_seq_length: 128
-    pad_to_max_length: 0 # "Whether to pad all samples to `max_seq_length`. ""If False, will pad the samples dynamically when batching to the maximum length in the batch (which can be faster on GPU but will be slower on TPU)."
-    doc_stride: 50 # When splitting up a long document into chunks, how much stride to take between chunks.
-    model_save_dir: '/opt/ml/my_code/output/model_saved'
-  post_process:
-    n_best_size: 20
-    max_answer_length: 30
+    first_cycle_epoch: 8 # if scheduler == CosineAnnealing
+    min_lr : 0.000005 # if scheduler == Cosine Anneaing
+    max_seq_length: 384
+    pad_to_max_length: 0 # options : [0, 1] "Whether to pad all samples to `max_seq_length`. ""If False, will pad the samples dynamically when batching to the maximum length in the batch (which can be faster on GPU but will be slower on TPU)."
+    doc_stride: 100 # When splitting up a long document into chunks, how much stride to take between chunks.
+    model_save_dir: '/opt/ml/my_code/output/mrc_model_saved'
+    save_name : koelectra-base-v3
+    post_process:
+      n_best_size: 20
+      max_answer_length: 30
+  dpr:
+    model_name: "bert-base-multilingual-cased"
+    num_epochs: 10
+    batch_size: 8
+    weight_decay: 0.01
+    lr: 0.00001
+    adam_epsilon: 1.0e-8
+    gradient_accumulation_steps: 1
+    topk: 5
+    warmup_epoch: 3
+    scheduler: 'linear'
+    padding: 'max_length'
+    truncation: True
+    model_save_dir: '/opt/ml/my_code/output/dpr_model_saved'
   dataset:
     train_dataset: "/opt/ml/input/data/data/train_dataset"
     test_dataset: '/opt/ml/input/data/data/test_dataset'
-    preprocessing_num_workers: 1
+    context_path: '/opt/ml/input/data/data/wikipedia_documents.json'
+    num_workers: 4
+  train:
+    retrieval: 'dpr' # options : [dpr, None]
+    mrc: 'None' # options : [mrc, None]
   inference:
-    retrieval: 1
-    data_path: /opt/ml/input/data/data
-    context_path: wikipedia_documents.json
-    output_dir: /opt/ml/my_code/output/submission
+    retrieval: 'None' # options : [dpr, bm25, tfidf, dpr_bm25, None]
+    mrc: 'None' # options : [mrc, None]
+  final_output_dir: '/opt/ml/my_code/output/submission'
 
 
-xlm-roberta-large:
-  model_name: "xlm-roberta-large"
+
+trial2:
   seed: 0
-  train_args:
-    retrieval: 1
+  mrc:
+    model_name : "xlm-roberta-large"
     num_epochs: 15
-    train_batch_size: 8
-    eval_batch_size: 8
-    weight_decay: 0.01
-    gradient_accumulation_steps: 1
+    batch_size: 8
+    gradient_accumulation_steps: 4
     optimizer: 'AdamW'
     adam_epsilon: 1.0e-8
-    criterion: 'label_smoothing' # (focal, label_smoothing, f1, cross_entropy)
+    weight_decay: 0.01
+    criterion: 'cross_entropy' # (focal, label_smoothing, f1, cross_entropy)
     smoothing: 0.2
-    scheduler_name: 'ReduceLROnPlateau' # ['CosineAnnealing', 'ReduceLROnPlateau', 'steplr', 'linear']
-    lr: 0.00001
+    lr: 0.0000005
+    scheduler: 'linear' # ['CosineAnnealing', 'ReduceLROnPlateau', 'steplr', 'linear']
     gamma: 0.1
-    warmup_epoch: 3
+    warmup_epoch: 0.05
     first_cycle_epoch: 6 # if scheduler == CosineAnnealing
     min_lr : 0.00001 # if scheduler == Cosine Anneaing
-  model_args:
-    max_seq_length: 128
-    pad_to_max_length: 0 # "Whether to pad all samples to `max_seq_length`. ""If False, will pad the samples dynamically when batching to the maximum length in the batch (which can be faster on GPU but will be slower on TPU)."
-    doc_stride: 50 # When splitting up a long document into chunks, how much stride to take between chunks.
-    model_save_dir: '/opt/ml/my_code/output/model_saved'
-  post_process:
-    n_best_size: 20
-    max_answer_length: 30
+    max_seq_length: 384
+    pad_to_max_length: 0 # options : [0, 1] "Whether to pad all samples to `max_seq_length`. ""If False, will pad the samples dynamically when batching to the maximum length in the batch (which can be faster on GPU but will be slower on TPU)."
+    doc_stride: 100 # When splitting up a long document into chunks, how much stride to take between chunks.
+    model_save_dir: '/opt/ml/my_code/output/mrc_model_saved'
+    post_process:
+      n_best_size: 20
+      max_answer_length: 30
+
+  dpr:
+    model_name: "bert-base-multilingual-cased"
+    num_epochs: 10
+    batch_size: 8
+    weight_decay: 0.01
+    lr: 0.00001
+    adam_epsilon: 1.0e-8
+    gradient_accumulation_steps: 1
+    topk: 5
+    warmup_epoch: 3
+    scheduler: 'linear'
+    padding: 'max_length'
+    truncation: True
+    max_length: 384
+    model_save_dir: '/opt/ml/my_code/output/dpr_model_saved'
+
   dataset:
     train_dataset: "/opt/ml/input/data/data/train_dataset"
     test_dataset: '/opt/ml/input/data/data/test_dataset'
-    preprocessing_num_workers: 1
+    context_path: '/opt/ml/input/data/data/wikipedia_documents.json'
+    num_workers: 1
+
+  train:
+    retrieval: 'None' # options : [dpr, None]
+    mrc: 'mrc' # options : [mrc, None]
+
   inference:
-    retrieval: 1
-    data_path: /opt/ml/input/data/data
-    context_path: wikipedia_documents.json
-    output_dir: /opt/ml/my_code/output/submission
+    retrieval: 'None' # options : [dpr, bm25, tfidf, dpr_bm25, None]
+    mrc: 'None' # options : [mrc, None]
+
+  final_output_dir: '/opt/ml/my_code/output/submission'
+
+
 

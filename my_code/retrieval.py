@@ -13,9 +13,10 @@ from konlpy.tag import Mecab
 
 import time
 from contextlib import contextmanager
+from konlpy.tag import Mecab
+from rank_bm25 import BM25Okapi,BM25Plus,BM25L
 
-from utils_qa import *
-from bm25 import *
+#from utils_qa import *
 
 @contextmanager
 def timer(name):
@@ -23,15 +24,14 @@ def timer(name):
     yield
     print(f'[{name}] done in {time.time() - t0:.3f} s')
 
+def run_sparse_retrieval(datasets, context_path, type_, topk = 1, tokenize = None):
+    if type_ == 'bm25':
+        retriever = SparseRetrievalBM25(context_path=context_path)
+    elif type_ == 'tfidf':
+        retriever = SparseRetrieval(tokenize_fn=tokenize, context_path=context_path)
+        retriever.get_sparse_embedding()
 
-def run_sparse_retrieval(datasets, tokenize, data_path, context_path):
-    #### retreival process ####
-
-    retriever = SparseRetrieval(tokenize_fn=tokenize,
-                                data_path=data_path,
-                                context_path=context_path)
-    retriever.get_sparse_embedding()
-    df = retriever.retrieve(datasets['validation'])
+    df = retriever.retrieve(datasets['validation'], topk = topk)
 
     # faiss retrieval
     # df = retriever.retrieve_faiss(dataset['validation'])
@@ -45,27 +45,90 @@ def run_sparse_retrieval(datasets, tokenize, data_path, context_path):
     return datasets
 
 
+class SparseRetrievalBM25:
+    def __init__(self, context_path):
+        with open(context_path, "r") as f:
+            wiki = json.load(f)
+
+        self.contexts = list(dict.fromkeys([v['text'] for v in wiki.values()])) # set 은 매번 순서가 바뀌므로
+        self.ids = list(range(len(self.contexts)))
+
+        self.mecab = Mecab()
+        tokenized_corpus = []
+        for context in tqdm(self.contexts):
+            tokenized_context = self.mecab.morphs(context)
+            tokenized_corpus.append(tokenized_context)
+        self.bm25 = BM25Plus(tokenized_corpus, k1=1, b=0.4, delta=0.4) #self.bm25 = BM25Okapi(tokenized_corpus)
+        
+    def get_relevant_doc_bm25(self, query, k=1):
+        tokenized_query  = self.mecab.morphs(query)
+        doc_score = self.bm25.get_scores(tokenized_query)
+        sorted_result = np.argsort(doc_score.squeeze())[::-1]
+
+        return doc_score.squeeze()[sorted_result].tolist()[:k], sorted_result.tolist()[:k]
+
+    def get_relevant_doc_bulk_bm25(self, queries, k=1):
+        tokenized_queries = []
+        doc_scores = []
+        doc_indices = []
+        for query in tqdm(queries):
+            tokenized_query= self.mecab.morphs(query)
+            doc_score = self.bm25.get_scores(tokenized_query)
+            sorted_result = np.argsort(doc_score.squeeze())[::-1]
+            doc_scores.append(doc_score.squeeze()[sorted_result].tolist()[:k])
+            doc_indices.append(sorted_result.tolist()[:k])
+        return doc_scores, doc_indices
+
+    def retrieve(self, query_or_dataset, topk=1):
+        if isinstance(query_or_dataset, str):
+            doc_scores, doc_indices = self.get_relevant_doc_bm25(query_or_dataset, k=topk)
+            print("[Search query]\n", query_or_dataset, "\n")
+
+            for i in range(topk):
+                print("Top-%d passage with score %.4f" % (i + 1, doc_scores[i]))
+                print(self.contexts[doc_indices[i]])
+            return doc_scores, [self.contexts[doc_indices[i]] for i in range(topk)]
+
+        elif isinstance(query_or_dataset, Dataset):
+            # make retrieved result as dataframe
+            total = []
+            with timer("query exhaustive search"):
+                doc_scores, doc_indices =self.get_relevant_doc_bulk_bm25(query_or_dataset['question'], k=topk)
+            for idx, example in enumerate(tqdm(query_or_dataset, desc="Sparse retrieval: ")):
+                # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
+                all_contexts =''
+                for i in range(topk):
+                    all_contexts =all_contexts + " "+ self.contexts[doc_indices[idx][i]]
+
+                tmp = {
+                    "question": example["question"],
+                    "id": example['id'],
+                    "context_id": doc_indices[idx][0],  # retrieved id
+                    "context": all_contexts #self.contexts[doc_indices[idx][0]]  # retrieved doument
+                }
+                if 'context' in example.keys() and 'answers' in example.keys():
+                    tmp["original_context"] = example['context']  # original document
+                    tmp["answers"] = example['answers']           # original answer
+                total.append(tmp)
+
+            cqas = pd.DataFrame(total)
+            
+            return cqas
+
 class SparseRetrieval:
-    def __init__(self, tokenize_fn, data_path, context_path):
-        self.data_path = data_path
-        with open(os.path.join(data_path, context_path), "r") as f:
+    def __init__(self, tokenize_fn, context_path):
+        with open(context_path, "r") as f:
             wiki = json.load(f)
 
         self.contexts = list(dict.fromkeys([v['text'] for v in wiki.values()])) # set 은 매번 순서가 바뀌므로
         print(f"Lengths of unique contexts : {len(self.contexts)}")
         self.ids = list(range(len(self.contexts)))
 
-        # Transform by vectorizer
-        # self.tfidfv = TfidfVectorizer(
-        #     tokenizer=tokenize_fn,
-        #     ngram_range=(1, 2),
-        #     max_features=100_000,
-        # )
-        
-        self.tfidfv = BM25Vectorizer(
+        #Transform by vectorizer
+        self.tfidfv = TfidfVectorizer(
             tokenizer=tokenize_fn,
             ngram_range=(1, 2),
-            max_features=100_000,
+            #max_features=10_000,
         )
 
         # should run get_sparse_embedding() or build_faiss() first.
@@ -135,20 +198,24 @@ class SparseRetrieval:
             # make retrieved result as dataframe
             total = []
             with timer("query exhaustive search"):
-                doc_scores, doc_indices = self.get_relevant_doc_bulk(query_or_dataset['question'], k=1)
+                doc_scores, doc_indices = self.get_relevant_doc_bulk(query_or_dataset['question'], k=5)
+                print(doc_scores, doc_indices)
             for idx, example in enumerate(tqdm(query_or_dataset, desc="Sparse retrieval: ")):
                 # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
+                all_contexts =' '
+                for i in range(topk):
+                    all_contexts = all_contexts + " " + self.contexts[doc_indices[idx][i]]
+                print(all_contexts)
                 tmp = {
                     "question": example["question"],
                     "id": example['id'],
                     "context_id": doc_indices[idx][0],  # retrieved id
-                    "context": self.contexts[doc_indices[idx][0]]  # retrieved doument
+                    "context": all_contexts #self.contexts[doc_indices[idx][0]]  # retrieved doument
                 }
                 if 'context' in example.keys() and 'answers' in example.keys():
                     tmp["original_context"] = example['context']  # original document
                     tmp["answers"] = example['answers']           # original answer
                 total.append(tmp)
-
             cqas = pd.DataFrame(total)
             return cqas
 
@@ -169,7 +236,7 @@ class SparseRetrieval:
         sorted_result = np.argsort(result.squeeze())[::-1]
         return result.squeeze()[sorted_result].tolist()[:k], sorted_result.tolist()[:k]
 
-    def get_relevant_doc_bulk(self, queries, k=1):
+    def get_relevant_doc_bulk(self, queries, k=5):
         query_vec = self.tfidfv.transform(queries)
         assert (
                 np.sum(query_vec) != 0

@@ -27,6 +27,43 @@ from transformers import (
 )
 
 
+## getting train contexts for dpr training
+def get_train_contexts(dataset):
+    context = [] 
+    for i in tqdm(range(len(dataset)), desc = 'getting_train_contexts'):
+        og = dataset['answers'][i]['answer_start'][0]
+        start, end = og - 250 if og - 250 > 0 else 0, og + 250 
+        new_context = dataset['context'][i][start: end]
+        context.append(new_context)
+    return new_context
+# using multiprocessing
+def get_train_contexts_multiprocessing(idx, dataset): 
+    og = dataset['answers'][idx]['answer_start'][0]
+    start, end = og - 250 if og - 250 > 0 else 0, og + 250 
+    new_context = dataset['context'][idx][start: end]
+    return new_context
+
+# getting train contexts for dpr eval and inference
+def get_eval_contexts_indices(dataset):
+    contexts, doc_indices = [], []
+    for i in tqdm(range(len(dataset)), desc = 'getting eval contexts and indices'):
+        n = len(dataset[i])
+        if n > 512:
+            cand_contexts = []
+            for idx in range(0, n+1, 500):
+                start = idx - 50 if idx - 50 > 0 else 0
+                end = start + 500
+                cand_context = dataset[i][start : end + 1]
+                cand_contexts.append(cand_context)
+                doc_indices.append(i)
+            contexts.extend(cand_contexts)
+        else:
+            contexts.append(dataset[i])
+            doc_indices.append(i)
+    return contexts, doc_indices
+
+
+
 # Training preprocessing
 def prepare_train_features(examples, tokenizer, max_length, stride, 
                            pad_on_right, pad_to_max_length, 
@@ -42,7 +79,7 @@ def prepare_train_features(examples, tokenizer, max_length, stride,
         stride=stride,
         return_overflowing_tokens=True,
         return_offsets_mapping=True,
-        padding="max_length" if pad_to_max_length else False,
+        padding = "max_length" if pad_to_max_length else False,
     )
 
     # Since one example might give us several features if it has a long context, we need a map from a feature to
@@ -390,4 +427,33 @@ def tokenize(text):
     return mecab.morphs(text)
 
 
+from datasets import Value, Features, Dataset, DatasetDict
+import pandas as pd
+import time
 
+
+def timer(name):
+    t0 = time.time()
+    yield
+    print(f'[{name}] done in {time.time() - t0:.3f} s')
+
+
+def retrieve_datasets_for_mrc(datasets, passages):
+    total = []
+    for idx, example in enumerate(tqdm(datasets['validation'], desc=" retrieve datasets ")):
+        tmp = {
+            "question": example["question"],
+            "id": example['id'],
+            #"context_id": context_id[idx],  # retrieved id
+            "context": passages[idx]  # retrieved doument
+        }
+        total.append(tmp)
+    df = pd.DataFrame(total)
+
+    # test data 에 대해선 정답이 없으므로 id question context 로만 데이터셋이 구성됩니다.
+    f = Features({'context': Value(dtype='string', id=None),
+                    'id': Value(dtype='string', id=None),
+                    'question': Value(dtype='string', id=None)})
+
+    datasets = DatasetDict({'validation': Dataset.from_pandas(df, features=f)})
+    return datasets

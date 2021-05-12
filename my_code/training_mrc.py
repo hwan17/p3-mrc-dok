@@ -24,14 +24,13 @@ class Trainers(object):
         self.model.to(self.device)
 
     def train(self):
-        train_dataset = DataLoader(self.train_dataset, collate_fn=self.collate_fn, batch_size=self.cfg.values.train_args.train_batch_size, shuffle = True)
+        train_dataset = DataLoader(self.train_dataset, collate_fn=self.collate_fn, batch_size=self.cfg.values.mrc.batch_size, shuffle = True)
         global_step = 0
         epoch_loss, epoch_acc = 0.0, 0.0
         self.model.train()
         with tqdm(train_dataset, total = len(train_dataset), unit = 'batch') as train_bar:
             for step, batch in enumerate(train_bar):
                 inputs = {key : value.to(self.device) for key, value in batch.items()}
-                self.optimizer.zero_grad()
                 pred = self.model(**inputs)
 
                 # sometimes the start/end positions are outside our model inputs, we ignore these terms
@@ -45,10 +44,11 @@ class Trainers(object):
                 total_loss.backward()
 
                 epoch_loss += total_loss.item()
-                if (step + 1) % self.cfg.values.train_args.gradient_accumulation_steps == 0:
+                if (step + 1) % self.cfg.values.mrc.gradient_accumulation_steps == 0:
                     global_step += 1
                     self.optimizer.step()
-                    if self.cfg.values.train_args.scheduler_name != 'ReduceLROnPlateau':
+                    self.optimizer.zero_grad()
+                    if self.cfg.values.mrc.scheduler != 'ReduceLROnPlateau':
                        self.scheduler.step()  # Update learning rate schedule
                 
                 # visualize wandb
@@ -56,7 +56,7 @@ class Trainers(object):
                 wandb.log({"Train Loss": total_loss.item(), "Learning Rate": current_lr})
                 
                 # update progress bar
-                train_bar.set_description(f'Training Epoch [{self.epoch + 1} / {self.cfg.values.train_args.num_epochs}]')
+                train_bar.set_description(f'Training Epoch [{self.epoch + 1} / {self.cfg.values.mrc.num_epochs}]')
                 train_bar.set_postfix(loss = total_loss.item(), current_lr = current_lr)
 
         return epoch_loss / global_step
@@ -65,7 +65,7 @@ class Trainers(object):
         self.model.eval()
         start, end = [], []
         if mode == 'train':
-            valid_dataset = DataLoader(self.valid_dataset, collate_fn=self.collate_fn, batch_size=self.cfg.values.train_args.eval_batch_size, shuffle=False)
+            valid_dataset = DataLoader(self.valid_dataset, collate_fn=self.collate_fn, batch_size=self.cfg.values.mrc.batch_size, shuffle=False)
             with tqdm(valid_dataset, total = len(valid_dataset), unit = "Evaluating") as eval_bar:
                 with torch.no_grad():
                     for batch in eval_bar:
@@ -75,11 +75,11 @@ class Trainers(object):
                         end.extend(pred.end_logits.tolist())
 
                         # update progress bar
-                        eval_bar.set_description(f'Evaluating [{self.epoch + 1} / {self.cfg.values.train_args.num_epochs}]')
+                        eval_bar.set_description(f'Evaluating [{self.epoch + 1} / {self.cfg.values.mrc.num_epochs}]')
 
             start, end = np.array(start), np.array(end)
-            predictions = post_processing_function(examples, features, (start,end), self.cfg.values.post_process.n_best_size, 
-                                                   self.cfg.values.post_process.max_answer_length,  mode = mode, 
+            predictions = post_processing_function(examples, features, (start,end), self.cfg.values.mrc.post_process.n_best_size, 
+                                                   self.cfg.values.mrc.post_process.max_answer_length,  mode = mode, 
                                                    answer_column_name=answer_column)
             metrics = compute_metrics(predictions)
             
@@ -102,8 +102,8 @@ class Trainers(object):
                         inference_bar.set_description(f'Inference')
             
             start, end = np.array(start), np.array(end)
-            predictions = post_processing_function(examples, features, (start,end), self.cfg.values.post_process.n_best_size, 
-                                                   self.cfg.values.post_process.max_answer_length, mode = mode,
-                                                   output_dir=self.cfg.values.inference.output_dir)
+            predictions = post_processing_function(examples, features, (start,end), self.cfg.values.mrc.post_process.n_best_size, 
+                                                   self.cfg.values.mrc.post_process.max_answer_length, mode = mode,
+                                                   output_dir=self.cfg.values.output_dir)
             return predictions
 
