@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
+import argparse
 
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
 
@@ -83,20 +84,20 @@ def main():
 
     # run passage retrieval if true
     if data_args.eval_retrieval:
-        datasets, doc_scores = run_bm25_retrieval(datasets, training_args)
+        datasets, doc_scores = run_bm25_retrieval(datasets, training_args, data_args.topk)
 
     # eval or predict mrc model
     if training_args.do_eval or training_args.do_predict:
         run_mrc(data_args, training_args, model_args, datasets, tokenizer, model, doc_scores)
 
 
-def run_bm25_retrieval(datasets, training_args):
+def run_bm25_retrieval(datasets, training_args, topk):
     #### retreival process ####
 
     retriever = BM25Retrieval(tokenize_fn=tokenize,
                                 data_path="/opt/ml/input/data/data",
                                 context_path="wikipedia_documents.json")
-    df, doc_scores = retriever.retrieve(datasets['validation'], topk=20)
+    df, doc_scores = retriever.retrieve(datasets['validation'], topk=topk)
 
     # faiss retrieval
     # df = retriever.retrieve_faiss(dataset['validation'])

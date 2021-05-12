@@ -134,3 +134,9 @@ class BM25(n_gram_BM25):
                     score[idx] += (self.idf.get(q) or 0) * (self.delta + (q_freq * (self.k1 + 1)) /
                                                (self.k1 * (1 - self.b + self.b * doc_len / self.avgdl) + q_freq))
             return score
+
+    def _tokenize_corpus2(self, corpus):
+        print('tokenize start')
+        tokenized_corpus = parmap.map(self.tokenizer, corpus, pm_pbar=True, pm_processes=cpu_count())
+        print('tokenize finish')
+        return tokenized_corpus

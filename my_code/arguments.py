@@ -66,6 +66,10 @@ class DataTrainingArguments:
         default=True,
         metadata={"help":"Whether to run passage retrieval using sparse/dense embedding )."},
     )
+    topk: int = field(
+        default=5,
+        metadata={"help":"Number of retrived passages."},
+    )
 
 
 
