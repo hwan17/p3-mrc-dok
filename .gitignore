@@ -129,10 +129,6 @@ dmypy.json
 .pyre/
 
 
-# Pytorch Model
-<<<<<<< HEAD
-.pt
-
 # Mecab & Python
 Python-*/
 mecab*/
