@@ -10,6 +10,7 @@ import os
 import sys
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
 import argparse
+import torch
 
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
 
@@ -82,6 +83,7 @@ def main():
         config=config,
     )
 
+    model.load_state_dict(torch.load('/opt/ml/code/models/train_dataset/best_EM.pt'))
     # run passage retrieval if true
     if data_args.eval_retrieval:
         datasets, doc_scores = run_bm25_retrieval(datasets, training_args, data_args.topk)

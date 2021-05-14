@@ -13,6 +13,7 @@ import json
 import collections
 from collections import OrderedDict
 from torch.utils.data.dataloader import DataLoader
+from scheduler import CosineAnnealingWarmupRestarts
 from torch.optim import Optimizer
 import datasets
 import inspect
@@ -466,6 +467,14 @@ class QuestionAnsweringTrainer:
                 num_warmup_steps=warmup_steps,
                 num_training_steps=num_training_steps,
             )
+        if self.lr_scheduler == 'CosineAnnealingWarmupRestarts':
+            self.lr_scheduler = CosineAnnealingWarmupRestarts(self.optimizer,
+                                          first_cycle_steps=500,
+                                          cycle_mult=2.0,
+                                          max_lr=1e-5,
+                                          min_lr=1e-9,
+                                          warmup_steps=150,
+                                          gamma=0.5)
     
     def num_examples(self, dataloader: DataLoader):
         return len(dataloader.dataset)
@@ -549,22 +558,8 @@ class QuestionAnsweringTrainer:
 
         train_dataloader = self.get_train_dataloader()
 
-        if train_dataset_is_sized:
-            num_update_steps_per_epoch = len(train_dataloader) // self.args.gradient_accumulation_steps
-            num_update_steps_per_epoch = max(num_update_steps_per_epoch, 1)
-            if self.args.max_steps > 0:
-                max_steps = self.args.max_steps
-                num_train_epochs = self.args.max_steps // num_update_steps_per_epoch + int(
-                    self.args.max_steps % num_update_steps_per_epoch > 0
-                )
-            else:
-                max_steps = math.ceil(self.args.num_train_epochs * num_update_steps_per_epoch)
-                num_train_epochs = math.ceil(self.args.num_train_epochs)
-        else:
-            # see __init__. max_steps is set when the dataset has no __len__
-            max_steps = self.args.max_steps
-            num_train_epochs = 1
-            num_update_steps_per_epoch = max_steps
+        num_train_epochs = math.ceil(self.args.num_train_epochs)
+        max_steps = len(train_dataloader) * num_train_epochs
         
         self.create_optimizer_and_scheduler(num_training_steps=max_steps)
 
@@ -625,16 +620,16 @@ class QuestionAnsweringTrainer:
 
                         model.zero_grad()
 
-                    time.sleep(0.1)
                     global_step += 1
                     pbar.update()
 
                     if global_step % self.args.eval_steps == 0:
                         result = self.evaluate()
                         if result['exact_match'] > max_em:
-                            print(max_em, '->', result['exact_match'], 'saved!')
+                            print(f'{global_step} step:\n', 'EM score:', max_em, '->', result['exact_match'], 'saved!')
+                            print('F1 score :', result['f1'])
                             max_em = result['exact_match']
-                            torch.save(model.state_dict(), f'/opt/ml/code/models/train_dataset/best_EM_{global_step}.pt')
+                            torch.save(model.state_dict(), f'/opt/ml/code/models/train_dataset/best_EM.pt')
 
         metrics = speed_metrics("train", start_time, max_steps)
 

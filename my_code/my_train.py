@@ -76,15 +76,17 @@ def main():
 
     training_args.num_train_epochs = 15
     training_args.learning_rate = 1e-5
-    training_args.per_device_train_batch_size = 32
+    training_args.per_device_train_batch_size = 16
     # training_args.per_device_eval_batch_size = 16
-    # training_args.gradient_accumulation_steps = 1
+    # training_args.gradient_accumulation_steps = 2
     # training_args.warmup_steps = 500
     # training_args.weight_decay = 0.01
     # training_args.save_total_limit = 3
     # training_args.save_steps = 8000
-    # training_args.dataloader_num_workers = 4
-    training_args.eval_steps = 100
+    training_args.dataloader_num_workers = 4
+    training_args.eval_steps = 500
+    training_args.logging_steps = 500
+
 
 
     # train or eval mrc model
@@ -306,6 +308,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
         data_collator=data_collator,
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,
+        optimizers=(None, 'CosineAnnealingWarmupRestarts')
     )
 
     # Training

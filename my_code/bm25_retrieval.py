@@ -69,41 +69,37 @@ class BM25Retrieval:
             return doc_scores, [self.contexts[doc_indices[i]] for i in range(topk)]
 
         elif isinstance(query_or_dataset, Dataset):
-            # make retrieved result as dataframe
-            total = []
-            with timer("query exhaustive search"):
-                doc_scores, doc_indices = self.get_relevant_doc_bulk(query_or_dataset['question'], k=topk)
-            for idx, example in enumerate(tqdm(query_or_dataset, desc="BM25 retrieval: ")):
-                # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
-                
-                for i in range(topk):
-                    tmp = {
-                        "question": example["question"],
-                        "id": example['id'],
-                        "context_id": doc_indices[idx][i],  # retrieved id
-                        "context": self.contexts[doc_indices[idx][i]],  # retrieved doument
-                        "context_score": doc_scores[idx][:topk]
-                    }
-                    if 'context' in example.keys() and 'answers' in example.keys():
-                        tmp["original_context"] = example['context']  # original document
-                        tmp["answers"] = example['answers']           # original answer
-                    total.append(tmp)
+            topk_name = f"BM25_{topk}"
+            topk_path = os.path.join(self.data_path, topk_name)
+            if os.path.isfile(topk_path):
+                with open(topk_path, "rb") as file:
+                    cqas, doc_scores = pickle.load(file)
+                print(f"BM25_{topk} pickle load.")
+            else:
+                # make retrieved result as dataframe
+                print(f'retrieve_top{topk} start')
+                total = []
+                with timer("query exhaustive search"):
+                    doc_scores, doc_indices = self.get_relevant_doc_bulk(query_or_dataset['question'], k=topk)
+                for idx, example in enumerate(tqdm(query_or_dataset, desc="BM25 retrieval: ")):
+                    # relev_doc_ids = [el for i, el in enumerate(self.ids) if i in doc_indices[idx]]
+                    
+                    for i in range(topk):
+                        tmp = {
+                            "question": example["question"],
+                            "id": example['id'],
+                            "context_id": doc_indices[idx][i],  # retrieved id
+                            "context": self.contexts[doc_indices[idx][i]],  # retrieved doument
+                            "context_score": doc_scores[idx][:topk]
+                        }
+                        if 'context' in example.keys() and 'answers' in example.keys():
+                            tmp["original_context"] = example['context']  # original document
+                            tmp["answers"] = example['answers']           # original answer
+                        total.append(tmp)
 
-                # contexts = ' spspsplit '.join([self.contexts[doc_indices[idx][i]] for i in range(topk)])
-
-                # tmp = {
-                #     "question": example["question"],
-                #     "id": example['id'],
-                #     "context_id": doc_indices[idx][:topk],  # retrieved id
-                #     "context": contexts,  # retrieved doument
-                #     "context_score": doc_scores[idx][:topk]
-                # }
-                # if 'context' in example.keys() and 'answers' in example.keys():
-                #     tmp["original_context"] = example['context']  # original document
-                #     tmp["answers"] = example['answers']           # original answer
-                # total.append(tmp)
-
-            cqas = pd.DataFrame(total)
+                cqas = pd.DataFrame(total)
+                with open(topk_path, "wb") as file:
+                    pickle.dump((cqas, doc_scores), file)
             return cqas, doc_scores
 
     def get_relevant_doc(self, query, k=1):
