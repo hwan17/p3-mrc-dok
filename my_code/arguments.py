@@ -7,7 +7,7 @@ class ModelArguments:
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
     """
     model_name_or_path: str = field(
-        default="monologg/koelectra-base-v3-finetuned-korquad",
+        default="monologg/koelectra-base-v3-discriminator",
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     config_name: Optional[str] = field(
@@ -15,6 +15,9 @@ class ModelArguments:
     )
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
+    )
+    num_beams: int = field(
+        default=4, metadata={"help": "num_beams"}
     )
 
 @dataclass
@@ -37,6 +40,19 @@ class DataTrainingArguments:
         metadata={
             "help": "The maximum total input sequence length after tokenization. Sequences longer "
                     "than this will be truncated, sequences shorter will be padded."
+        },
+    )
+    max_source_length: int = field(
+        default=1040,
+        metadata={
+            "help": "The maximum total input sequence length after tokenization. Sequences longer "
+                    "than this will be truncated, sequences shorter will be padded."
+        },
+    )
+    max_target_length: int = field(
+        default=40,
+        metadata={
+            "help": "max_target_length "
         },
     )
     pad_to_max_length: bool = field(

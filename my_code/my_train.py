@@ -1,8 +1,8 @@
 import logging
 import os
 import sys
-from datasets import load_metric, load_from_disk
-
+from datasets import load_metric, load_from_disk, Dataset, DatasetDict
+from collections import defaultdict
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
 
 from transformers import (
@@ -16,7 +16,8 @@ from transformers import (
 from utils_qa import postprocess_qa_predictions, check_no_error, tokenize
 # from trainer_qa import QuestionAnsweringTrainer
 from my_trainer import QuestionAnsweringTrainer
-from retrieval import SparseRetrieval
+import torch
+import re
 
 from arguments import (
     ModelArguments,
@@ -54,6 +55,18 @@ def main():
     set_seed(training_args.seed)
 
     datasets = load_from_disk(data_args.dataset_name)
+    
+    # total_dic = {}
+    # for train_or_valid, train_or_valid_data in datasets.items():
+    #     dic = defaultdict(list)
+    #     for i in range(len(train_or_valid_data)):
+    #         for key, value in train_or_valid_data[i].items():
+    #             if key == 'context':
+    #                 value = re.sub(r'\\n+|날짜=[\d]+-[\d]+-[\d]+', ' ', value).strip()
+    #             dic[key].append(value)
+    #     total_dic[train_or_valid] = Dataset.from_dict(dic)
+
+    # datasets = DatasetDict(total_dic)
     print(datasets)
 
     # Load pretrained model and tokenizer
@@ -79,15 +92,10 @@ def main():
     training_args.per_device_train_batch_size = 16
     # training_args.per_device_eval_batch_size = 16
     # training_args.gradient_accumulation_steps = 2
-    # training_args.warmup_steps = 500
-    # training_args.weight_decay = 0.01
-    # training_args.save_total_limit = 3
-    # training_args.save_steps = 8000
+    training_args.warmup_steps = 500
     training_args.dataloader_num_workers = 4
     training_args.eval_steps = 500
-    training_args.logging_steps = 500
-
-
+    # training_args.logging_steps = 500
 
     # train or eval mrc model
     if training_args.do_train or training_args.do_eval:
@@ -308,7 +316,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
         data_collator=data_collator,
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,
-        optimizers=(None, 'CosineAnnealingWarmupRestarts')
+        # optimizers=(None, 'CosineAnnealingWarmupRestarts')
     )
 
     # Training
