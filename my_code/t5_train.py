@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from datasets import load_metric, load_from_disk, Dataset, DatasetDict
+from datasets import load_metric, load_from_disk, Dataset, DatasetDict, load_dataset
 from collections import defaultdict
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer, Adafactor
 
@@ -12,6 +12,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     set_seed,
 )
+import wandb
 
 from utils_qa import postprocess_qa_predictions, check_no_error, tokenize
 from my_seq2seq_trainer import Seq2SeqTrainer
@@ -56,7 +57,11 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    datasets = load_from_disk(data_args.dataset_name)
+    # datasets = load_from_disk(data_args.dataset_name)
+    datasets = load_dataset('squad_kor_v1')
+    datasets2 = load_from_disk(data_args.dataset_name)
+
+    datasets = DatasetDict({'train':datasets['train'], 'validation':datasets2['validation']})
     
     # total_dic = {}
     # for train_or_valid, train_or_valid_data in datasets.items():
@@ -70,23 +75,18 @@ def main():
 
     # datasets = DatasetDict(total_dic)
     print(datasets)
-
     # Load pretrained model and tokenizer
     config = AutoConfig.from_pretrained(
-        model_args.config_name
-        if model_args.config_name
-        else model_args.model_name_or_path,
+        '/opt/ml/code/pytorch/t5_ke',
         cache_dir=None,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name
-        if model_args.tokenizer_name
-        else model_args.model_name_or_path,
+        '/opt/ml/code/pytorch/t5_ke',
         use_fast=True,
         cache_dir=None,
     )
     model = AutoModelForSeq2SeqLM.from_pretrained(
-        model_args.model_name_or_path,
+        '/opt/ml/code/pytorch/t5_ke',
         cache_dir=None,
         config=config,
     )
@@ -98,18 +98,21 @@ def main():
     training_args.max_target_length = data_args.max_target_length
 
     training_args.num_train_epochs = 120
-    training_args.learning_rate = 0.001
+    training_args.learning_rate = 1e-4
     training_args.per_device_train_batch_size = 4
     training_args.per_device_eval_batch_size = 4
-    training_args.gradient_accumulation_steps = 4
+    training_args.gradient_accumulation_steps = 8
     training_args.dataloader_num_workers = 4
-    training_args.eval_steps = 500
-    training_args.logging_steps = 500
-    training_args.lr_scheduler_type='constant'
+    # training_args.eval_steps = 10
+    # training_args.logging_steps = 500
+    # training_args.lr_scheduler_type='constant'
     training_args.predict_with_generate=True,
 
     # train or eval mrc model
     if training_args.do_train or training_args.do_eval:
+        wandb.init(project='MRC', name = model_args.model_name_or_path, reinit = False)
+        # wandb.watch(model)
+        wandb.config.update(training_args)
         run_mrc(data_args, training_args, model_args, datasets, tokenizer, model)
 
 
@@ -194,7 +197,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
         result = metric.compute(predictions=formatted_predictions, references=references)
         return result
 
-    optimizer = Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False)
+    # optimizer = Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False)
 
     # Initialize our Trainer
     trainer = Seq2SeqTrainer(
@@ -205,7 +208,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
-        optimizers = (optimizer, None),
+        # optimizers = (optimizer, None),
     )
 
     # Training

@@ -29,6 +29,7 @@ import collections
 import warnings
 import math
 import os
+import wandb
 
 class TrainOutput(NamedTuple):
     global_step: int
@@ -259,11 +260,16 @@ class Seq2SeqTrainer(QuestionAnsweringTrainer):
 
                     global_step += 1
                     pbar.update()
-
-                    if global_step % self.args.eval_steps == 0 and global_step > 5000:
+                    
+                    if global_step % self.args.eval_steps == 0:
                         result = self.evaluate(max_length=self.args.max_target_length, num_beams=self.args.num_beams, metric_key_prefix="eval")
+                        wandb.log({
+                            'EM_score':result['eval_exact_match'],
+                            'F1_score':result['eval_f1'],
+                            'Validation_loss':result['eval_loss']
+                            })
                         if result['eval_exact_match'] > max_em:
-                            print(f'{global_step} step:\n\t', 'EM score: {max_em} ->', result['eval_exact_match'], 'saved!')
+                            print(f'{global_step} step:\n', f'\tEM score: {max_em} ->', result['eval_exact_match'], 'saved!')
                             print(f'\tValid_loss : {val_loss} ->', result['eval_loss'])
                             print(f'\tF1 score : {f1} ->', result['eval_f1'])
                             val_loss = result['eval_loss']
@@ -273,6 +279,7 @@ class Seq2SeqTrainer(QuestionAnsweringTrainer):
 
                     if global_step % self.args.logging_steps == 0:
                         print(f'Step: {global_step}\n\tTrain_loss: {tr_loss.item() / global_step}')
+                        wandb.log({'Train_loss':tr_loss.item() / global_step})
 
         model.config.save_pretrained('/opt/ml/code/models/train_dataset')
         self.tokenizer.save_pretrained('/opt/ml/code/models/train_dataset')
