@@ -18,6 +18,7 @@ from utils_qa import postprocess_qa_predictions, check_no_error, tokenize
 from my_seq2seq_trainer import Seq2SeqTrainer
 import torch
 import nltk
+import re
 
 from arguments import (
     ModelArguments,
@@ -34,7 +35,7 @@ def main():
         (ModelArguments, DataTrainingArguments, Seq2SeqTrainingArguments)
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    model_args.model_name_or_path = 'KETI-AIR/ke-t5-base'
+    model_args.model_name_or_path = 'KETI-AIR/ke-t5-large-newslike'
     data_args.preprocessing_num_workers = 12
     
     print(model_args)
@@ -58,55 +59,60 @@ def main():
     set_seed(training_args.seed)
 
     # datasets = load_from_disk(data_args.dataset_name)
-    datasets = load_dataset('squad_kor_v1')
-    datasets2 = load_from_disk(data_args.dataset_name)
+    # datasets = load_dataset('squad_kor_v1')
+    datasets = load_from_disk(data_args.dataset_name)
 
-    datasets = DatasetDict({'train':datasets['train'], 'validation':datasets2['validation']})
+    # datasets = DatasetDict({'train':datasets['train'], 'validation':datasets2['validation']})
     
-    # total_dic = {}
-    # for train_or_valid, train_or_valid_data in datasets.items():
-    #     dic = defaultdict(list)
-    #     for i in range(len(train_or_valid_data)):
-    #         for key, value in train_or_valid_data[i].items():
-    #             if key == 'context':
-    #                 value = re.sub(r'\\n+|날짜=[\d]+-[\d]+-[\d]+', ' ', value).strip()
-    #             dic[key].append(value)
-    #     total_dic[train_or_valid] = Dataset.from_dict(dic)
+    total_dic = {}
+    for train_or_valid, train_or_valid_data in datasets.items():
+        dic = defaultdict(list)
+        for i in range(len(train_or_valid_data)):
+            for key, value in train_or_valid_data[i].items():
+                if key == 'context':
+                    value = re.sub(r'\\n+|날짜=[\d]+-[\d]+-[\d]+', ' ', value).strip()
+                    value = re.sub(r'\([一-龥]+\)', '', value)
+                elif key == 'answers':
+                    text = re.sub(r'\([一-龥]+\)', '', value['text'][0])
+                    value = {'answer_start':value['answer_start'], 'text':[text]}
+                dic[key].append(value)
+        total_dic[train_or_valid] = Dataset.from_dict(dic)
+    datasets = DatasetDict(total_dic)
 
-    # datasets = DatasetDict(total_dic)
     print(datasets)
     # Load pretrained model and tokenizer
     config = AutoConfig.from_pretrained(
-        '/opt/ml/code/pytorch/t5_ke',
+        'KETI-AIR/ke-t5-large-newslike',
         cache_dir=None,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        '/opt/ml/code/pytorch/t5_ke',
+        'KETI-AIR/ke-t5-large-newslike',
         use_fast=True,
         cache_dir=None,
     )
     model = AutoModelForSeq2SeqLM.from_pretrained(
-        '/opt/ml/code/pytorch/t5_ke',
+        'KETI-AIR/ke-t5-large-newslike',
         cache_dir=None,
         config=config,
     )
 
-    # model.load_state_dict(torch.load('/opt/ml/code/t5/outputs/checkpoint-5000/pytorch_model.bin'))
+    model.load_state_dict(torch.load('/opt/ml/pytorch_model_t5_2.bin'))
 
     training_args.num_beams = model_args.num_beams
     training_args.max_source_length = data_args.max_source_length
     training_args.max_target_length = data_args.max_target_length
 
-    training_args.num_train_epochs = 120
+    training_args.num_train_epochs = 5
     training_args.learning_rate = 1e-4
-    training_args.per_device_train_batch_size = 4
+    training_args.per_device_train_batch_size = 1
     training_args.per_device_eval_batch_size = 4
-    training_args.gradient_accumulation_steps = 8
+    training_args.gradient_accumulation_steps = 32
     training_args.dataloader_num_workers = 4
     # training_args.eval_steps = 10
-    # training_args.logging_steps = 500
+    training_args.logging_steps = 100
     # training_args.lr_scheduler_type='constant'
     training_args.predict_with_generate=True,
+    training_args.warmup_steps=4800
 
     # train or eval mrc model
     if training_args.do_train or training_args.do_eval:
