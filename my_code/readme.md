@@ -66,7 +66,7 @@ train.py 를 실행할 때 mrc 모델과 sparse retrieval 모델의 학습이 �
 python my_train.py --output_dir ./models/train_dataset --do_train --do_eval --overwrite_output_dir
 
 # t5 model
-python t5_train.py --output_dir .KETI-AIR/ke-t5-base/outputs --do_train --do_eval --overwrite_output_dir --eval_steps 500
+python t5_train.py --output_dir ./KETI-AIR/ke-t5-large/outputs --do_train --do_eval --overwrite_output_dir --eval_steps 500
 ```
 
 ### eval

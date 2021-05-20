@@ -241,8 +241,8 @@ class Seq2SeqTrainer(QuestionAnsweringTrainer):
 
                     if (step + 1) % self.args.gradient_accumulation_steps == 0 or (
                         # last step in epoch but step is always smaller than gradient_accumulation_steps
-                        steps_in_epoch <= self.args.gradient_accumulation_steps
-                        and (step + 1) == steps_in_epoch
+                        #steps_in_epoch <= self.args.gradient_accumulation_steps and
+                        (step + 1) == steps_in_epoch
                     ):
                         # Gradient clipping
                         if self.args.max_grad_norm is not None and self.args.max_grad_norm > 0:

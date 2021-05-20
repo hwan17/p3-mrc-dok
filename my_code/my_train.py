@@ -1,8 +1,8 @@
 import logging
 import os
 import sys
-from datasets import load_metric, load_from_disk, Dataset, DatasetDict
-from collections import defaultdict
+from datasets import load_metric, load_from_disk,load_dataset,concatenate_datasets
+
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
 
 from transformers import (
@@ -12,20 +12,22 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
+# import yaml
 
 from utils_qa import postprocess_qa_predictions, check_no_error, tokenize
 # from trainer_qa import QuestionAnsweringTrainer
 from my_trainer import QuestionAnsweringTrainer
-import torch
-import re
+# from retrieval import SparseRetrieval
 
 from arguments import (
     ModelArguments,
     DataTrainingArguments,
 )
-
+import wandb
 logger = logging.getLogger(__name__)
 
+
+        
 def main():
     # 가능한 arguments 들은 ./arguments.py 나 transformer package 안의 src/transformers/training_args.py 에서 확인 가능합니다.
     # --help flag 를 실행시켜서 확인할 수 도 있습니다.
@@ -54,19 +56,14 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    datasets = load_from_disk(data_args.dataset_name)
+    dataset = load_dataset("squad_kor_v1")
+    mrc_dataset = load_from_disk('/opt/ml/input/data/data/train_dataset')
+    mrc_dataset = mrc_dataset.remove_columns(['__index_level_0__', 'document_id'])
+    mrc_dataset_train = mrc_dataset['train'].map(features=dataset['train'].features) #, keep_in_memory=True
+    mrc_dataset_validation = mrc_dataset['validation'].map(features=dataset['validation'].features) #, keep_in_memory=True
+    mrc_dataset['train'] = concatenate_datasets([mrc_dataset_train, dataset['train'], dataset['validation']])
+    datasets = mrc_dataset
     
-    # total_dic = {}
-    # for train_or_valid, train_or_valid_data in datasets.items():
-    #     dic = defaultdict(list)
-    #     for i in range(len(train_or_valid_data)):
-    #         for key, value in train_or_valid_data[i].items():
-    #             if key == 'context':
-    #                 value = re.sub(r'\\n+|날짜=[\d]+-[\d]+-[\d]+', ' ', value).strip()
-    #             dic[key].append(value)
-    #     total_dic[train_or_valid] = Dataset.from_dict(dic)
-
-    # datasets = DatasetDict(total_dic)
     print(datasets)
 
     # Load pretrained model and tokenizer
@@ -87,20 +84,33 @@ def main():
         config=config,
     )
 
-    training_args.num_train_epochs = 15
-    training_args.learning_rate = 1e-5
-    training_args.per_device_train_batch_size = 16
-    # training_args.per_device_eval_batch_size = 16
-    # training_args.gradient_accumulation_steps = 2
-    training_args.warmup_steps = 500
-    training_args.dataloader_num_workers = 4
-    training_args.eval_steps = 500
-    # training_args.logging_steps = 500
+#     training_args.num_train_epochs = 5
+# #     training_args.learning_rate = 1e-5
+#     training_args.per_device_train_batch_size = 32
+#     training_args.per_device_eval_batch_size = 32
+#     # training_args.gradient_accumulation_steps = 2
+#     training_args.warmup_steps = 300
+#     # training_args.weight_decay = 0.01
+#     # training_args.save_total_limit = 3
+#     # training_args.save_steps = 8000
+#     training_args.dataloader_num_workers = 4
+#     training_args.eval_steps = 500
+#     training_args.logging_steps = 500
+#     training_args.output_dir= os.path.join('/opt/ml/code/0514/taewhan/auto',f'{model_args.model_name_or_path}_{self.lr_scheduler}_{self.args.learning_rate}')
+
 
     # train or eval mrc model
     if training_args.do_train or training_args.do_eval:
+        run = wandb.init(project='MRC', name = model_args.model_name_or_path, reinit = False)
+        
+#         cfg = YamlConfigManager(model_ars,data_args,training_args)
+        
+        wandb.config.update(training_args)
+        print(model_args)
+        print(data_args)
+        print(training_args)
         run_mrc(data_args, training_args, model_args, datasets, tokenizer, model)
-
+        run.finish()
 
 def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
     # Preprocessing the datasets.
@@ -316,7 +326,7 @@ def run_mrc(data_args, training_args, model_args, datasets, tokenizer, model):
         data_collator=data_collator,
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,
-        # optimizers=(None, 'CosineAnnealingWarmupRestarts')
+        #optimizers=(None, 'CosineAnnealingWarmupRestarts')
     )
 
     # Training

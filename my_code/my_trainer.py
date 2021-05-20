@@ -9,7 +9,7 @@ import warnings
 
 import numpy as np
 import json
-
+import wandb
 import collections
 from collections import OrderedDict
 from torch.utils.data.dataloader import DataLoader
@@ -163,7 +163,7 @@ def set_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
     # ^^ safe to call this function even if cuda is not available
 
-def torch_pad_and_concatenate(tensor1, tensor2, padding_index=-100):
+def torch_pad_and_concatenate(tensor1, tensor2, padding_index=0):
     """Concatenates `tensor1` and `tensor2` on first axis, applying padding on the second if necessary."""
     if len(tensor1.shape) == 1 or tensor1.shape[1] == tensor2.shape[1]:
         return torch.cat((tensor1, tensor2), dim=0)
@@ -177,7 +177,7 @@ def torch_pad_and_concatenate(tensor1, tensor2, padding_index=-100):
     result[tensor1.shape[0] :, : tensor2.shape[1]] = tensor2
     return result
 
-def numpy_pad_and_concatenate(array1, array2, padding_index=-100):
+def numpy_pad_and_concatenate(array1, array2, padding_index=0):
     """Concatenates `array1` and `array2` on first axis, applying padding on the second if necessary."""
     if len(array1.shape) == 1 or array1.shape[1] == array2.shape[1]:
         return np.concatenate((array1, array2), dim=0)
@@ -191,7 +191,7 @@ def numpy_pad_and_concatenate(array1, array2, padding_index=-100):
     result[array1.shape[0] :, : array2.shape[1]] = array2
     return result
 
-def nested_concat(tensors, new_tensors, padding_index=-100):
+def nested_concat(tensors, new_tensors, padding_index=0):
     """
     Concat the `new_tensors` to `tensors` on the first dim and pad them on the second if needed. Works for tensors or
     nested list/tuples of tensors.
@@ -225,14 +225,14 @@ def speed_metrics(split, start_time, num_samples=None):
     result = {f"{split}_runtime": round(runtime, 4)}
     return result
 
-def nested_new_like(arrays, num_samples, padding_index=-100):
+def nested_new_like(arrays, num_samples, padding_index=0):
     """ Create the same nested structure as `arrays` with a first dimension always at `num_samples`."""
     if isinstance(arrays, (list, tuple)):
         return type(arrays)(nested_new_like(x, num_samples) for x in arrays)
     return np.full_like(arrays, padding_index, shape=(num_samples, *arrays.shape[1:]))
 
 
-def expand_like(arrays, new_seq_length, padding_index=-100):
+def expand_like(arrays, new_seq_length, padding_index=0):
     """ Expand the `arrays` so that the second dimension grows to `new_seq_length`. Uses `padding_index` for padding."""
     result = np.full_like(arrays, padding_index, shape=(arrays.shape[0], new_seq_length) + arrays.shape[2:])
     result[:, : arrays.shape[1]] = arrays
@@ -247,7 +247,7 @@ def nested_truncate(tensors, limit):
 
 
 class DistributedTensorGatherer:
-    def __init__(self, world_size, num_samples, make_multiple_of=None, padding_index=-100):
+    def __init__(self, world_size, num_samples, make_multiple_of=None, padding_index=0):
         self.world_size = world_size
         self.num_samples = num_samples
         total_size = world_size if make_multiple_of is None else world_size * make_multiple_of
@@ -625,11 +625,12 @@ class QuestionAnsweringTrainer:
 
                     if global_step % self.args.eval_steps == 0:
                         result = self.evaluate()
+                        wandb.log({'Exact_match': result['exact_match'], 'F1_score': result['f1']})
                         if result['exact_match'] > max_em:
                             print(f'{global_step} step:\n', 'EM score:', max_em, '->', result['exact_match'], 'saved!')
                             print('F1 score :', result['f1'])
                             max_em = result['exact_match']
-                            torch.save(model.state_dict(), f'/opt/ml/code/models/train_dataset/best_EM.pt')
+                            torch.save(model.state_dict(), os.path.join(self.args.output_dir, f'best_EM.pt'))
 
         metrics = speed_metrics("train", start_time, max_steps)
 
@@ -739,9 +740,9 @@ class QuestionAnsweringTrainer:
                 losses = loss.repeat(batch_size)
                 losses_host = losses if losses_host is None else torch.cat((losses_host, losses), dim=0)
             if logits is not None:
-                preds_host = logits if preds_host is None else nested_concat(preds_host, logits, padding_index=-100)
+                preds_host = logits if preds_host is None else nested_concat(preds_host, logits, padding_index=0)
             if labels is not None:
-                labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=-100)
+                labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=0)
 
             # Gather all tensors and put them back on the CPU if we have done enough accumulation steps.
             if self.args.eval_accumulation_steps is not None and (step + 1) % self.args.eval_accumulation_steps == 0:
