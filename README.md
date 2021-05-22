@@ -20,8 +20,10 @@ python upload/train.py --warmup_step 300 --lr_scheduler_type cosine_with_restart
     
 ## 기타 시도
 * T5 모델을 이용한 Generation Model 학습 및 Inference
-    * 학습
+    * 학습 방법
     ```bash
     python t5_train.py --output_dir KETI-AIR/ke-t5-large/outputs --do_train --do_eval
     ```
     * Inference: t5_infer.ipynb 실행
+        * EM: 55.42%
+        * F1: 68.07%
