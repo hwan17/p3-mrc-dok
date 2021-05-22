@@ -51,13 +51,13 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
     datasets = load_from_disk(data_args.dataset_name)
-#     dataset = load_dataset("squad_kor_v1")
-#     mrc_dataset = load_from_disk('/opt/ml/input/data/data/train_dataset')
-#     mrc_dataset = mrc_dataset.remove_columns(['__index_level_0__', 'document_id'])
-#     mrc_dataset_train = mrc_dataset['train'].map(features=dataset['train'].features) #, keep_in_memory=True
-#     # mrc_dataset_validation = mrc_dataset['validation'].map(features=dataset['validation'].features) #, keep_in_memory=True
-#     mrc_dataset['train'] = concatenate_datasets([mrc_dataset_train, dataset['train']])
-#     datasets = mrc_dataset
+    dataset = load_dataset("squad_kor_v1")
+    mrc_dataset = load_from_disk('/opt/ml/input/data/data/train_dataset')
+    mrc_dataset = mrc_dataset.remove_columns(['__index_level_0__', 'document_id'])
+    mrc_dataset_train = mrc_dataset['train'].map(features=dataset['train'].features) #, keep_in_memory=True
+    # mrc_dataset_validation = mrc_dataset['validation'].map(features=dataset['validation'].features) #, keep_in_memory=True
+    mrc_dataset['train'] = concatenate_datasets([mrc_dataset_train, dataset['train']])
+    datasets = mrc_dataset
     print(datasets)
 
     # Load pretrained model and tokenizer
