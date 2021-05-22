@@ -62,9 +62,6 @@ data에 대한 argument 는 arguments.py 의 DataTrainingArguments 에서 확인
 train.py 를 실행할 때 mrc 모델과 sparse retrieval 모델의 학습이 모두 진행되도록 만들어두었습니다.  만약 arguments 에 대한 세팅을 직접하고 싶다면 arguments.py 를 참고해주세요. 
 
 ```
-# 학습 예시 (train_dataset 사용)
-python my_train.py --output_dir ./models/train_dataset --do_train --do_eval --overwrite_output_dir
-
 # t5 model
 python t5_train.py --output_dir ./KETI-AIR/ke-t5-large/outputs --do_train --do_eval --overwrite_output_dir --eval_steps 500
 ```
@@ -90,6 +87,8 @@ retrieval 과 mrc 모델의 학습이 완료되면 inference.py 를 이용해 od
 # odqa 실행 (test_dataset 사용)
 # wandb 가 로그인 되어있다면 자동으로 결과가 wandb 에 저장됩니다. 아니면 단순히 출력됩니다
 python bm25_inference.py --output_dir /opt/ml/code/outputs/test_dataset/ --dataset_name /opt/ml/input/data/data/test_dataset/ --model_name_or_path /opt/ml/code/models/train_dataset/ --do_predict --overwrite_output_dir
+
+# t5 inference는 ipynb 파일로 진행
 
 ```
 
