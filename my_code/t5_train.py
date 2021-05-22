@@ -96,7 +96,7 @@ def main():
         config=config,
     )
 
-    model.load_state_dict(torch.load('/opt/ml/pytorch_model_t5_2.bin'))
+    # model.load_state_dict(torch.load('/opt/ml/pytorch_model_t5_2.bin'))
 
     training_args.num_beams = model_args.num_beams
     training_args.max_source_length = data_args.max_source_length
