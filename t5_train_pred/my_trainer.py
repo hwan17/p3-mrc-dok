@@ -13,7 +13,6 @@ import wandb
 import collections
 from collections import OrderedDict
 from torch.utils.data.dataloader import DataLoader
-from scheduler import CosineAnnealingWarmupRestarts
 from torch.optim import Optimizer
 import datasets
 import inspect

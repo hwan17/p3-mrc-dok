@@ -22,7 +22,7 @@ from torch.utils.data.dataset import Dataset, IterableDataset
 from torch.utils.data.dataloader import DataLoader
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, NamedTuple
 
-from my_train import QuestionAnsweringTrainer
+from my_trainer import QuestionAnsweringTrainer
 import numpy as np
 import time
 import collections
